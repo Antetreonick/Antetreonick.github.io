@@ -1,0 +1,42 @@
+#b1 {
+  font-size: 50px;
+  background-color: rgb(78, 83, 250);
+  border: 1px solid red;
+}
+#b2 {
+  font-size: 50px;
+  background-color: rgb(78, 83, 250);
+  border: 1px solid red;
+}
+#b3 {
+  font-size: 50px;
+  background-color: rgb(78, 83, 250);
+  border: 1px solid red;
+}
+#b4 {
+  font-size: 30px;
+  background-color: rgb(78, 350, 105);
+  border: 1px solid blue;
+}
+#b5 {
+  font-size: 30px;
+  background-color: rgb(78, 350, 105);
+  border: 1px solid blue;
+}
+#dis {
+  width: 0px;
+  height: 0px;
+  font-size: 0px;
+  border: 0px;
+}
+#i {
+  width: 957.5px;
+  height: 450px;
+  background-color: rgb(120.5262716381, 131.8579172, 230.371818)
+}
+#prn {
+  font-size: 15pt;
+}
+#s {
+  font-size: 15pt;
+}
