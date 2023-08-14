@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Textured 3D Cube</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Set up the scene, camera, and renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true }); // Enable antialiasing
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Increase the resolution of the renderer for higher quality
+        const pixelRatio = window.devicePixelRatio || 1;
+        renderer.setPixelRatio(pixelRatio);
+
+        // Create a cube
+        const geometry = new THREE.BoxGeometry(4, 4, 4); // Make the cube larger
+
+        // Load a texture
+        const textureLoader = new THREE.TextureLoader();
+        const texture = textureLoader.load('https://threejs.org/examples/textures/crate.gif'); // Replace with your image
+
+        // Material with Phong shading and texture
+        const material = new THREE.MeshPhongMaterial({
+            map: texture, // Apply the texture
+            shininess: 30, // Shininess
+        });
+
+        const cube = new THREE.Mesh(geometry, material);
+        scene.add(cube);
+
+        // Add lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        directionalLight.position.set(0, 1, 0);
+        scene.add(directionalLight);
+
+        // Position the camera
+        camera.position.z = 10;
+
+        // Track mouse state and initial cursor position
+        let isMouseDown = false;
+        let initialX = 0;
+        let initialY = 0;
+
+        // Function to handle window resizing
+        function handleResize() {
+            const newWidth = window.innerWidth;
+            const newHeight = window.innerHeight;
+
+            camera.aspect = newWidth / newHeight;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(newWidth, newHeight);
+        }
+
+        // Function to handle mouse down
+        function handleMouseDown(event) {
+            isMouseDown = true;
+            initialX = event.clientX;
+            initialY = event.clientY;
+        }
+
+        // Function to handle mouse up
+        function handleMouseUp() {
+            isMouseDown = false;
+        }
+
+        // Function to handle mouse movement
+        function handleMouseMove(event) {
+            if (!isMouseDown) return;
+
+            const rotationSpeed = 0.005;
+
+            const deltaX = event.clientX - initialX;
+            const deltaY = event.clientY - initialY;
+
+            cube.rotation.x += deltaY * rotationSpeed;
+            cube.rotation.y += deltaX * rotationSpeed;
+
+            initialX = event.clientX;
+            initialY = event.clientY;
+        }
+
+        window.addEventListener('resize', handleResize);
+        window.addEventListener('mousedown', handleMouseDown);
+        window.addEventListener('mouseup', handleMouseUp);
+        window.addEventListener('mousemove', handleMouseMove);
+
+        // Rendering loop
+        const animate = function () {
+            requestAnimationFrame(animate);
+
+            renderer.render(scene, camera);
+        };
+
+        animate();
+    </script>
+</body>
+</html>
