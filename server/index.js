@@ -1,14 +1,14 @@
 const WebSocket = require("wss");
 
-const socket = new WebSocket.Server({ server: 'antetreonick.github.io', port: 8083 });
+const wss = new WebSocket.Server({ server: 'antetreonick.github.io', port: 8083 });
 
-socket.broadcast = function(data) { socket.clients.forEach(client => client.send(data)); };
+wss.broadcast = function(data) { wss.clients.forEach(client => client.send(data)); };
 
-socket.on("connection", ws => {
+wss.on("connection", ws => {
     console.log("a new client connected!");
 
     ws.on("message", data => {
-        socket.broadcast(`${data}`);
+        wss.broadcast(`${data}`);
     });
 
     ws.on("close", () => {
