@@ -1,4 +1,4 @@
-const WebSocket = require("wss");
+const WebSocket = require("ws");
 
 const wss = new WebSocket.Server({ server: 'antetreonick.github.io', port: 8083 });
 
