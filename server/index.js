@@ -1,6 +1,6 @@
 const WebSocket = require("wss");
 
-const socket = new WebSocket.Server({ server: 'antetreonick.github.io' });
+const socket = new WebSocket.Server({ server: 'antetreonick.github.io', port: 8083 });
 
 socket.broadcast = function(data) { socket.clients.forEach(client => client.send(data)); };
 
