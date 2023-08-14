@@ -8,7 +8,7 @@
         <textarea id="s" style="width: 360px; height: 100px; color: white; background-color: black; background-image: 20px;"></textarea>
         <input type="text" onclick="onsad = 'yes'" id="i">
         <script>
-            const ws = new WebSocket("wss://antetreonick.github.io:8083");
+            const ws = new WebSocket("ws://antetreonick.github.io:8083");
             const a = {n: ''};
 
             ws.addEventListener("open", () => {
