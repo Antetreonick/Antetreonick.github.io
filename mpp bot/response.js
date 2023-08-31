@@ -4,8 +4,8 @@ MPP.client.on('a', msg => {
   if (cmd == `${pref}help`) {
     MPP.chat.send('commands: /help, /say');
   }
-  let e = 6
-  if (cmd == '${pref}say' + cmd.at(e++)) {
+  let op = 6
+  if (cmd == '${pref}say' + cmd.at(op++)) {
     while (1+1) {
       let i = 0;
       const word = [];
