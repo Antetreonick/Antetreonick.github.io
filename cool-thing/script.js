@@ -53,3 +53,10 @@ function getMultiples(number, numberOfMutliples, returnArray = false) {
     }
 }
 let factorsDisplay = document.getElementById('f');
+let factorsInput = document.getElementById('fi');
+let multiplesDisplay = document.getElementById('m');
+let multiplesInput = document.getElementById('mi');
+
+window.onkeydown = (event) => {
+    if (event.key.toLowerCase() == 'z') factorsDisplay.innerText = getFactors(factorsInput.value); else if (event.key == 'x') multiplesDisplay.innertext = getMultiples(multiplesInput.value);
+}
