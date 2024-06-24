@@ -58,5 +58,5 @@ let multiplesDisplay = document.getElementById('m');
 let multiplesInput = document.getElementById('mi');
 
 window.onkeydown = (event) => {
-    if (event.key.toLowerCase() == 'z') factorsDisplay.innerText = getFactors(factorsInput.value); else if (event.key == 'x') multiplesDisplay.innertext = getMultiples(multiplesInput.value);
+    if (event.key.toLowerCase() == 'z') factorsDisplay.innerText = getFactors(eval(factorsInput.value)); else if (event.key == 'x') multiplesDisplay.innertext = getMultiples(eval(multiplesInput.value));
 }
