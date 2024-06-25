@@ -1,0 +1,90 @@
+<html>
+<head>
+<title>GPU GetFactors</title>
+</head>
+  <body>
+    <script src="https://raw.githubusercontent.com/gpujs/gpu.js/master/dist/gpu-browser.min.js"></script>
+    <p id="p"></p>
+    <input type="text" id="o"></input>
+    <input type="button" id="b"></input>
+    <br></br>
+    <p id="p2"></p>
+    <input type="text" id="o2"></input>
+    <input type="button" id="b2"></input>
+    <script>
+      let p = document.getElementById("p");
+      let p2 = document.getElementById("p2");
+      let o = document.getElementById("o");
+      let o2 = document.getElementById("o2");
+      let b2 = document.getElementById("b2");
+
+      function getFactors(number, returnArray = false) {
+    if (typeof number == 'number') {
+        let i = 0;
+        let factors = [];
+
+        while (true) {
+            if (i !== number) {
+                i++;
+                let a = eval(number / i).toString();
+
+                if (a.indexOf('.') == -1) {
+                    factors.push(i);
+                }
+            } else {
+                if (returnArray) {
+                    return factors;
+                } else {
+                    return factors.join(', ');
+                }
+            }
+        }
+    } else {
+        throw new Error('the provided value is not an number!');
+    }
+}
+      let gpu = new GPU.GPU();
+
+      let di = gpu.createKernel(function(a, b) {
+    let t = a / b;
+
+    return t;
+}).setOutput([1]);
+      function getFactorsGPU(number, returnArray = false) {
+    if (typeof number == 'number') {
+        let i = 0;
+        let factors = [];
+
+        while (true) {
+            if (i !== number) {
+                i++;
+                let a = di(number, i)[0].toString();
+
+                if (a.indexOf('.') == -1) {
+                    factors.push(i);
+                }
+            } else {
+                if (returnArray) {
+                    return factors;
+                } else {
+                    return factors.join(', ');
+                }
+            }
+        }
+    } else {
+        throw new Error('the provided value is not an number!');
+    }
+}
+      b.onclick = () => {
+        if (o.value !== '') {
+          p.innerText = getFactors(eval(o.value));
+        }
+      }
+      b2.onclick = () => {
+        if (o2.value !== '') {
+          p2.innerText = getFactorsGPU(eval(o2.value));
+        }
+      }
+    </script>
+  </body>
+</html>
