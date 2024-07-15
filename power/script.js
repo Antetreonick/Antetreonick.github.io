@@ -17,6 +17,7 @@ window.onkeydown = (event) => {
         let o = eval(w.value + b.value);
             if (typeof o !== 'undefined') {
                 m.innerText = power(w.value, b.value);
-        }
+            }
+      }
     } catch (err) { console.error('the value must not be a string!')}
 }
