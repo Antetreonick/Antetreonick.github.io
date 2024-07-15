@@ -13,10 +13,10 @@ let m = document.getElementById('p');
 
 window.onkeydown = (event) => {
     if (event.key == 'Enter') {
-      if (typeof w.value == 'string' || typeof b.value == 'string') {
-        alert('the value must not be a string!');
-      } else {
-        m.innerText = power(w.value, b.value);
-      }
-    }
+      try {
+        let o = eval(w.value + b.value);
+            if (typeof o !== 'undefined') {
+                m.innerText = power(w.value, b.value);
+        }
+    } catch (err) { console.error('the value must not be a string!')}
 }
