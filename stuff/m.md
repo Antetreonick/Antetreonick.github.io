@@ -5,7 +5,7 @@
 - species: angel.
 
 ## backstory
-was the ruler of the multiverse. But got struck down by demons and now is a weaker angel who would do anything to get its position back no matter the cost.
+was the ruler of the hyperverse. But got struck down by demons and now is a weaker angel who would do anything to get its position back no matter the cost.
 
 ## Appearance
 looks like a human and has no wings and its left eye is blue and right eye is red.
