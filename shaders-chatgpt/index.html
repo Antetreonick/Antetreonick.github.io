@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GLSL 3D Cubes with Orbiting Light</title>
+  <style>
+    body, html { margin: 0; height: 100%; overflow: hidden; }
+    canvas { width: 100%; height: 100%; display: block; }
+  </style>
+</head>
+<body>
+<canvas id="glcanvas"></canvas>
+<script type="text/javascript">
+const vertexShaderSource = `#version 300 es
+in vec4 a_position;
+void main() {
+  gl_Position = a_position;
+}
+`;
+
+const fragmentShaderSource = `#version 300 es
+precision highp float;
+out vec4 outColor;
+
+uniform float u_time;
+uniform vec2 u_resolution;
+
+//-----------------------------------
+// Distance Fields
+//-----------------------------------
+float sdBox(vec3 p, vec3 b) {
+  vec3 q = abs(p) - b;
+  return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
+}
+
+float opUnion(float a, float b) {
+  return min(a, b);
+}
+
+float sceneSDF(vec3 p, out bool hitFloor) {
+  float d = 1e3;
+  hitFloor = false;
+  d = opUnion(d, sdBox(p - vec3(-1.5, 0.5, 0.0), vec3(0.5)));
+  d = opUnion(d, sdBox(p - vec3( 1.5, 0.5, 0.0), vec3(0.5)));
+  float floor = p.y + 1.0;
+  d = opUnion(d, floor);
+  return d;
+}
+
+float sceneDist(vec3 p) {
+  bool dummy;
+  return sceneSDF(p, dummy);
+}
+
+//-----------------------------------
+// Geometry Helpers
+//-----------------------------------
+vec3 estimateNormal(vec3 p) {
+  float e = 0.001;
+  return normalize(vec3(
+    sceneDist(p + vec3(e, 0, 0)) - sceneDist(p - vec3(e, 0, 0)),
+    sceneDist(p + vec3(0, e, 0)) - sceneDist(p - vec3(0, e, 0)),
+    sceneDist(p + vec3(0, 0, e)) - sceneDist(p - vec3(0, 0, e))
+  ));
+}
+
+float ambientOcclusion(vec3 p, vec3 n) {
+  float ao = 0.0;
+  float sca = 1.0;
+  for (int i = 1; i <= 5; i++) {
+    float h = float(i) * 0.05;
+    float d = sceneDist(p + n * h);
+    ao += (h - d) * sca;
+    sca *= 0.75;
+  }
+  return clamp(1.0 - ao, 0.0, 1.0);
+}
+
+float specular(vec3 L, vec3 V, vec3 N, float shininess) {
+  vec3 R = reflect(-L, N);
+  return pow(max(dot(R, V), 0.0), shininess);
+}
+
+//-----------------------------------
+// Raymarching Core
+//-----------------------------------
+float rayMarch(vec3 ro, vec3 rd, out vec3 p, out bool hitFloor) {
+  float t = 0.0;
+  for (int i = 0; i < 150; i++) {
+    p = ro + rd * t;
+    float d = sceneSDF(p, hitFloor);
+    if (d < 0.001) return t;
+    if (t > 50.0) break;
+    t += max(d * 1.0, 0.00005); // <-- more precise stepping
+  }
+  return -1.0;
+}
+vec3 getReflection(vec3 ro, vec3 rd, int depth) {
+  if (depth <= 0) return vec3(0.0);
+  vec3 p;
+  bool hitFloor;
+  float t = rayMarch(ro, rd, p, hitFloor);
+  if (t < 0.0) return vec3(0.0);
+
+  vec3 N = estimateNormal(p);
+  vec3 L = normalize(vec3(sin(u_time)*3.0, 1.0, cos(u_time)*3.0) - p);
+  vec3 V = normalize(ro - p);
+
+  float diff = max(dot(N, L), 0.0);
+  float spec = specular(L, V, N, 64.0);
+  float ao = ambientOcclusion(p, N);
+
+  vec3 col;
+  if (hitFloor) {
+    float ck = step(0.0, mod(floor(p.x) + floor(p.z), 2.0));
+    col = mix(vec3(0.2), vec3(0.4), ck);
+  } else {
+    col = vec3(0.15) + diff * ao * vec3(1.0, 0.8, 0.6);
+    col += vec3(1.0) * spec;
+  }
+
+  float glow = 1.0 / (length(p - vec3(sin(u_time)*3.0, 1.0, cos(u_time)*3.0)) * 8.0 + 1.0);
+  col += vec3(1.0, 0.6, 0.3) * glow;
+
+  // Fog
+  const vec3 fogColor = vec3(0.8, 0.9, 1.0);
+  const float fogDensity = 0.08;
+  float fogFactor = 1.0 - exp(-t * fogDensity);
+  col = mix(col, fogColor, fogFactor);
+
+  return col;
+}
+
+//-----------------------------------
+// True Shadow Check (raymarched)
+//-----------------------------------
+bool isOccluded(vec3 from, vec3 to) {
+  vec3 dir = normalize(to - from);
+  float maxDist = length(to - from);
+  float t = 0.01;
+  for (int i = 0; i < 100; i++) {
+    vec3 p = from + dir * t;
+    float d = sceneDist(p);
+    if (d < 0.001) return true;
+    t += max(d * 0.5, 0.00005); // <-- tighter shadow precision
+    if (t >= maxDist) break;
+  }
+  return false;
+}
+float softPenumbralShadow(vec3 p, vec3 lightPos, float lightRadius) {
+  const int samples = 64;
+  float shadow = 0.0;
+  vec3 lightDir = normalize(lightPos - p);
+  vec3 right = normalize(cross(lightDir, vec3(0.0, 1.0, 0.0)));
+  vec3 up = cross(right, lightDir);
+
+  for (int i = 0; i < samples; i++) {
+    float angle = float(i) / float(samples) * 6.2831853;
+    float r = lightRadius * sqrt(float(i) / float(samples));
+    vec3 offset = right * cos(angle) * r + up * sin(angle) * r;
+    vec3 target = lightPos + offset;
+    if (!isOccluded(p + estimateNormal(p) * 0.01, target)) {
+      shadow += 1.0;
+    }
+  }
+
+  return shadow / float(samples);
+}
+
+//-----------------------------------
+// Volumetric Sunbeams
+//-----------------------------------
+float volumetricSun(vec3 ro, vec3 rd, vec3 sunDir) {
+  float scatter = 0.0;
+  float t = 0.0;
+  for (int i = 0; i < 48; i++) {
+    vec3 pos = ro + rd * t;
+    float density = 0.02;
+    bool shadow = isOccluded(pos + sunDir * 0.1, pos + sunDir * 10.0);
+    scatter += (shadow ? 0.0 : 1.0) * density;
+    t += 0.25 / 2.0; // <-- already conservative
+  }
+  return clamp(scatter, 0.0, 1.0);
+}
+
+
+//-----------------------------------
+// Main
+//-----------------------------------
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / u_resolution.y;
+
+  vec3 ro = vec3(0.0, 2.0, 7.0);
+  vec3 ta = vec3(0.0, 0.5, 0.0);
+  vec3 fw = normalize(ta - ro);
+  vec3 rt = normalize(cross(vec3(0, 1, 0), fw));
+  vec3 up = cross(fw, rt);
+  vec3 rd = normalize(uv.x * rt + uv.y * up + 1.5 * fw);
+
+  float a = u_time;
+  vec3 lightPos = vec3(sin(a) * 3.0, 1.0, cos(a) * 3.0);
+  vec3 sunDir = normalize(lightPos - ro);
+
+  vec3 p;
+  bool hitFloor;
+  float t = rayMarch(ro, rd, p, hitFloor);
+
+  vec3 color = vec3(0.0);
+
+  if (t > 0.0) {
+    vec3 N = estimateNormal(p);
+    vec3 L = normalize(lightPos - p);
+    vec3 V = normalize(ro - p);
+    float diff = 0.0;
+    float spec = 0.0;
+
+        float shadowStrength = softPenumbralShadow(p, lightPos, 0.3); // 0.3 is the light radius
+    diff = max(dot(N, L), 0.0) * shadowStrength;
+    spec = specular(L, V, N, 64.0) * shadowStrength;
+
+
+    float ao = ambientOcclusion(p, N);
+
+    if (hitFloor) {
+      float ck = step(0.0, mod(floor(p.x) + floor(p.z), 2.0));
+      color = mix(vec3(0.2), vec3(0.4), ck);
+    } else {
+      color = vec3(0.15) + diff * ao * vec3(1.0, 0.8, 0.6);
+      color += vec3(1.0) * spec;
+    }
+
+        float glow = 1.0 / (length(p - lightPos) * 8.0 + 1.0);
+    color += vec3(1.0, 0.6, 0.3) * glow;
+
+    // Reflections
+    vec3 R = reflect(-rd, N);
+    vec3 reflectionColor = getReflection(p + N * 0.01, R, 1);
+    float reflectAmount = hitFloor ? 0.2 : 0.5; // floor less reflective
+    color = mix(color, reflectionColor, reflectAmount);
+
+  }
+
+  // Fog
+  const vec3 fogColor = vec3(0.8, 0.9, 1.0);
+  const float fogDensity = 0.08;
+  float fogFactor = 1.0 - exp(-t * fogDensity);
+  color = mix(color, fogColor, fogFactor);
+
+  // Sunbeams
+  float sunbeam = volumetricSun(ro, rd, sunDir);
+  color += sunbeam * vec3(1.0, 0.9, 0.6) / 5.0;
+
+  outColor = vec4(color, 1.0);
+}
+`;
+
+function main() {
+  const canvas = document.getElementById("glcanvas");
+  const gl = canvas.getContext("webgl2");
+  if (!gl) {
+    alert("WebGL2 not supported");
+    return;
+  }
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  // Create shaders and program
+  function compileShader(type, src) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, src);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      console.error(gl.getShaderInfoLog(shader));
+      gl.deleteShader(shader);
+    }
+    return shader;
+  }
+
+  const vs = compileShader(gl.VERTEX_SHADER, vertexShaderSource);
+  const fs = compileShader(gl.FRAGMENT_SHADER, fragmentShaderSource);
+  const program = gl.createProgram();
+  gl.attachShader(program, vs);
+  gl.attachShader(program, fs);
+  gl.linkProgram(program);
+  gl.useProgram(program);
+
+  // Fullscreen quad
+  const quad = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    -1, -1, 1, -1, -1, 1,
+     1, -1, 1,  1, -1, 1,
+  ]), gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(program, "a_position");
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+  // Uniform locations
+  const uTime = gl.getUniformLocation(program, "u_time");
+  const uRes = gl.getUniformLocation(program, "u_resolution");
+
+  // Render loop
+  function render(time) {
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl.useProgram(program);
+    gl.uniform1f(uTime, time * 0.001);
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    requestAnimationFrame(render);
+  }
+
+  requestAnimationFrame(render);
+}
+
+main();
+</script>
+</body>
+</html>
